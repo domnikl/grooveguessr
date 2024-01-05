@@ -10,50 +10,29 @@ use actix_web::cookie::Key;
 use actix_web::web::Data;
 use actix_web::{guard, web, App, HttpResponse, HttpServer, Responder};
 use async_graphql::http::GraphiQLSource;
-use async_graphql::{EmptyMutation, EmptySubscription, Schema};
+use async_graphql::{EmptySubscription, Schema};
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
 use diesel::prelude::*;
 use diesel::r2d2;
 use dotenvy::dotenv;
 
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-
-use crate::handler::graphql_handler::{ProjectSchema, Query};
-
-mod handler;
-
-type DbPool = r2d2::Pool<r2d2::ConnectionManager<PgConnection>>;
+use grooveguessr_backend::{AppContext, DbPool, Mutation, Query};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
-
-pub struct AppContext {
-    db_pool: DbPool,
-    schema: ProjectSchema,
-}
-
-impl Clone for AppContext {
-    fn clone(&self) -> Self {
-        Self {
-            db_pool: self.db_pool.clone(),
-            schema: self.schema.clone(),
-        }
-    }
-}
 
 async fn graphql(
     context: Data<AppContext>,
     _session: Session,
     req: GraphQLRequest,
 ) -> GraphQLResponse {
-    let request = req.into_inner();
-
-    context.schema.execute(request).await.into()
+    context.schema.execute(req.into_inner()).await.into()
 }
 
 async fn index_graphiql() -> impl Responder {
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
-        .body(GraphiQLSource::build().endpoint("/").finish())
+        .body(GraphiQLSource::build().endpoint("/graphql").finish())
 }
 
 /// Initialize database connection pool based on `DATABASE_URL` environment variable.
@@ -87,7 +66,7 @@ async fn main() -> std::io::Result<()> {
             .as_bytes(),
     );
 
-    let schema = Schema::build(Query, EmptyMutation, EmptySubscription)
+    let schema = Schema::build(Query, Mutation, EmptySubscription)
         .data(db_pool.clone())
         .finish();
 

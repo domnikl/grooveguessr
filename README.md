@@ -34,5 +34,5 @@ This will compile the code, run migrations, start the development server as well
 Run the following to generate a new migration:
 
 ```shell
-diesel migration create <name>
+diesel migration generate <name>
 ```
