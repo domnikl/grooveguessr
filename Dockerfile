@@ -38,6 +38,7 @@ RUN --mount=type=bind,source=backend/src,target=src \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
     <<EOF
 set -e
+cargo test
 cargo build --locked --release
 cp ./target/release/$APP_NAME /bin/server
 EOF
