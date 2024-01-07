@@ -1,9 +1,16 @@
-use async_graphql::SimpleObject;
+use async_graphql::*;
 use diesel::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-use crate::db_schema::lobbies;
+use crate::{
+    db_schema::lobbies,
+    services::{user::UserService, Error},
+    DbPool,
+};
+
+use super::user::User;
 
 #[derive(
     Debug,
@@ -15,12 +22,15 @@ use crate::db_schema::lobbies;
     Identifiable,
     Selectable,
     Insertable,
+    AsChangeset,
 )]
 #[diesel(table_name = lobbies)]
+#[graphql(complex)]
 pub struct Lobby {
     pub id: String,
     pub started_at: Option<chrono::NaiveDateTime>,
     pub guessing_time: i16,
+    pub host_id: Uuid,
     pub created_at: chrono::NaiveDateTime,
 }
 
@@ -39,7 +49,23 @@ impl Default for Lobby {
             started_at: None,
             guessing_time: 80,
             created_at: chrono::Utc::now().naive_utc(),
+            host_id: Uuid::nil(),
         }
+    }
+}
+
+#[ComplexObject]
+impl Lobby {
+    async fn host(&self, ctx: &Context<'_>) -> FieldResult<User> {
+        let db_pool = ctx
+            .data::<DbPool>()
+            .expect("No database connection pool in context");
+
+        let user = UserService::new(db_pool)
+            .find(self.host_id)
+            .map_err(|err: Error| err.extend_with(|_, e| e.set("code", 404)))?;
+
+        Ok(user)
     }
 }
 
@@ -47,7 +73,7 @@ impl Default for Lobby {
 mod tests {
     use chrono::Datelike;
 
-    use crate::schemas::lobby;
+    use crate::models::lobby;
 
     #[test]
     fn generate_random_string() {

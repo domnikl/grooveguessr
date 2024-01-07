@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate log;
 
+use std::sync::Arc;
+
 use actix_files::Files;
 use actix_session::config::PersistentSession;
 use actix_session::storage::CookieSessionStore;
@@ -17,16 +19,34 @@ use diesel::r2d2;
 use dotenvy::dotenv;
 
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use grooveguessr_backend::{AppContext, DbPool, Mutation, Query};
+use grooveguessr_backend::{
+    auth,
+    auth::create_client,
+    auth::OpenIDConnectConfig,
+    auth::UserInfo,
+    auth_middleware::AuthRequired,
+    youtube::{Youtube, YoutubeClient},
+    OidcClient,
+};
+use grooveguessr_backend::{AppState, DbPool, Mutation, Query};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 async fn graphql(
-    context: Data<AppContext>,
-    _session: Session,
+    context: Data<AppState>,
+    session: Session,
     req: GraphQLRequest,
 ) -> GraphQLResponse {
-    context.schema.execute(req.into_inner()).await.into()
+    let mut request = req.into_inner();
+
+    let user = session
+        .get::<UserInfo>("user_info")
+        .expect("Could not fetch user info - not logged in?")
+        .unwrap();
+
+    request = request.data(user);
+
+    context.schema.execute(request).await.into()
 }
 
 async fn index_graphiql() -> impl Responder {
@@ -45,6 +65,27 @@ fn initialize_db_pool() -> DbPool {
     r2d2::Pool::builder()
         .build(manager)
         .expect("Error building r2d2 pool")
+}
+
+async fn initialize_oidc_client() -> OidcClient {
+    Arc::new(
+        create_client(OpenIDConnectConfig {
+            issuer_url: std::env::var("OIDC_ISSUER_URL").expect("OIDC_ISSUER_URL needs to be set"),
+            client_id: std::env::var("OIDC_CLIENT_ID").expect("OIDC_CLIENT_ID needs to be set"),
+            client_secret: std::env::var("OIDC_CLIENT_SECRET")
+                .expect("OIDC_CLIENT_SECRET needs to be set"),
+            redirect_url: std::env::var("OIDC_REDIRECT_URL")
+                .expect("OIDC_REDIRECT_URL needs to be set"),
+        })
+        .await
+        .expect("Error initializing OIDC client"),
+    )
+}
+
+fn initialize_youtube() -> Youtube {
+    Arc::new(YoutubeClient::new(
+        std::env::var("YOUTUBE_API_KEY").expect("YOUTUBE_API_KEY needs to be set"),
+    ))
 }
 
 #[actix_web::main]
@@ -66,11 +107,20 @@ async fn main() -> std::io::Result<()> {
             .as_bytes(),
     );
 
+    let oidc_client = initialize_oidc_client().await;
+    let youtube_client = initialize_youtube();
+
     let schema = Schema::build(Query, Mutation, EmptySubscription)
         .data(db_pool.clone())
         .finish();
 
-    let app_context = AppContext { db_pool, schema };
+    let app_state = AppState {
+        db_pool,
+        schema,
+        oidc_client,
+        youtube_client,
+    };
+    let app_data = Data::new(app_state);
 
     info!("GraphiQL IDE: http://localhost:8080/graphql");
 
@@ -81,13 +131,21 @@ async fn main() -> std::io::Result<()> {
                     .session_lifecycle(PersistentSession::default().session_ttl(Duration::days(1)))
                     .build(),
             )
-            .app_data(Data::new(app_context.clone()))
+            .app_data(app_data.clone())
+            .service(web::resource("/login").to(auth::login))
+            .service(web::resource("/auth_callback").to(auth::auth_callback))
             .service(
                 web::resource("/graphql")
                     .guard(guard::Get())
+                    .wrap(AuthRequired)
                     .to(index_graphiql),
             )
-            .service(web::resource("/graphql").guard(guard::Post()).to(graphql))
+            .service(
+                web::resource("/graphql")
+                    .guard(guard::Post())
+                    .wrap(AuthRequired)
+                    .to(graphql),
+            )
             .service(Files::new("/", "public").index_file("index.html"))
     })
     .bind("0.0.0.0:8080")?

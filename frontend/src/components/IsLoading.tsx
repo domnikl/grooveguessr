@@ -2,7 +2,7 @@ import { CircularProgress } from "@mui/material";
 
 type IsLoadingProps = {
   isLoading: boolean;
-  children: any;
+  children?: any | undefined;
 };
 
 export default function IsLoading(props: IsLoadingProps) {

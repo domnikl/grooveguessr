@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 pub mod lobby;
+pub mod user;
 
 pub enum Error {
     DbError(diesel::result::Error),

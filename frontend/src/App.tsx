@@ -4,7 +4,7 @@ import Home from "./pages/Home";
 import { ThemeProvider, createTheme } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import Lobby, { loader as lobbyLoader } from "./pages/Lobby";
+import Game, { loader as gameLoader } from "./pages/Game";
 import ErrorBoundary from "./pages/ErrorBoundary";
 
 const router = createHashRouter([
@@ -13,7 +13,7 @@ const router = createHashRouter([
     Component: Layout,
     errorElement: <ErrorBoundary error={null} />,
     children: [
-      { path: "/game/:id", Component: Lobby, loader: lobbyLoader },
+      { path: "/game/:id", Component: Game, loader: gameLoader },
       { path: "/", Component: Home },
     ],
   },
