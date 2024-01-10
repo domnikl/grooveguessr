@@ -17,11 +17,11 @@ impl<'a> PresenceService<'a> {
         let mut redis = self
             .redis
             .get_connection()
-            .map_err(Error::RedisConnectionError)?;
+            .map_err(Error::RedisConnection)?;
 
         redis
             .set_ex(format!("lobby:{}|player-id:{}", lobby.id, user.id), 42, 5)
-            .map_err(Error::RedisConnectionError)?;
+            .map_err(Error::RedisConnection)?;
 
         Ok(())
     }
@@ -30,16 +30,16 @@ impl<'a> PresenceService<'a> {
         let mut redis = self
             .redis
             .get_connection()
-            .map_err(Error::RedisConnectionError)?;
+            .map_err(Error::RedisConnection)?;
 
         let keys: Vec<String> = redis
             .keys(format!("lobby:{}|player-id:*", lobby.id))
-            .map_err(Error::RedisConnectionError)?;
+            .map_err(Error::RedisConnection)?;
 
         let mut users = Vec::new();
 
         for key in keys {
-            let user_id = key.split(":").last().unwrap().to_owned();
+            let user_id = key.split(':').last().unwrap().to_owned();
 
             users.push(user_id);
         }

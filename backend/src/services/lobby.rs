@@ -22,14 +22,14 @@ impl<'a> LobbyService<'a> {
     }
 
     pub fn create(&self, lobby: Lobby, user: &User) -> Result<Lobby, Error> {
-        let mut conn = self.db_pool.get().map_err(Error::DbConnectionError)?;
+        let mut conn = self.db_pool.get().map_err(Error::DbConnection)?;
 
         // TODO: run this in a transaction
 
         diesel::insert_into(lobbies)
             .values(&lobby)
             .execute(&mut conn)
-            .map_err(Error::DbError)?;
+            .map_err(Error::Db)?;
 
         self.join(lobby.id.clone(), user)?;
 
@@ -43,7 +43,7 @@ impl<'a> LobbyService<'a> {
             .filter(id.eq(lobby_id))
             .limit(1)
             .get_result::<Lobby>(&mut conn)
-            .map_err(Error::DbError)?;
+            .map_err(Error::Db)?;
 
         // TODO: seperate it into it's own heartbeat mechanism
         self.presence_service.heartbeat(&lobby, user)?;
@@ -69,7 +69,7 @@ impl<'a> LobbyService<'a> {
             .values(lobby_player)
             .on_conflict_do_nothing()
             .execute(&mut conn)
-            .map_err(Error::DbError)?;
+            .map_err(Error::Db)?;
 
         self.presence_service.heartbeat(&lobby, user)?;
 
@@ -85,7 +85,7 @@ impl<'a> LobbyService<'a> {
             .filter(id.eq(lobby.id.clone()))
             .set(&lobby)
             .execute(&mut conn)
-            .map_err(Error::DbError)?;
+            .map_err(Error::Db)?;
 
         Ok(lobby)
     }
@@ -99,7 +99,7 @@ impl<'a> LobbyService<'a> {
             .filter(id.eq(lobby.id.clone()))
             .set(started_at.eq(chrono::Utc::now().naive_utc()))
             .execute(&mut conn)
-            .map_err(Error::DbError)?;
+            .map_err(Error::Db)?;
 
         Ok(lobby)
     }
@@ -117,7 +117,7 @@ impl<'a> LobbyService<'a> {
             ),
         )
         .execute(&mut conn)
-        .map_err(Error::DbError)?;
+        .map_err(Error::Db)?;
 
         // TODO: delete lobby (and notify users) if host is no longer present
 
@@ -126,7 +126,7 @@ impl<'a> LobbyService<'a> {
                 lobbies::table().filter(id.eq(&lobby.id).and(host_id.eq(&lobby.host_id))),
             )
             .execute(&mut conn)
-            .map_err(Error::DbError)?;
+            .map_err(Error::Db)?;
         }
 
         Ok(())

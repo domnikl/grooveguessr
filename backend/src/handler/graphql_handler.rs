@@ -3,7 +3,7 @@ use async_graphql::{Context, EmptySubscription, ErrorExtensions, FieldResult, Ob
 use crate::auth::UserInfo;
 use crate::models::user::User;
 use crate::services::lobby::LobbyService;
-use crate::services::presence::{self, PresenceService};
+use crate::services::presence::PresenceService;
 use crate::services::user::UserService;
 use crate::services::Error;
 use crate::{models::lobby::Lobby, DbPool};
@@ -24,7 +24,7 @@ fn lobby_service<'a>(
     ctx: &Context<'a>,
     presence_service: &'a PresenceService<'a>,
 ) -> LobbyService<'a> {
-    LobbyService::new(db_pool(ctx), &presence_service)
+    LobbyService::new(db_pool(ctx), presence_service)
 }
 
 #[Object]

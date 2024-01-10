@@ -78,7 +78,7 @@ impl Lobby {
         let players = lobbies_players::table
             .filter(lobbies_players::lobby_id.eq(&self.id))
             .get_results::<LobbyPlayers>(&mut conn)
-            .map_err(Error::DbError)?;
+            .map_err(Error::Db)?;
 
         let mut users = Vec::new();
 

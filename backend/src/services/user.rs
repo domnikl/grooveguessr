@@ -15,13 +15,13 @@ impl<'a> UserService<'a> {
     }
 
     pub fn register(&self, user: User) -> Result<User, Error> {
-        let mut conn = self.db_pool.get().map_err(Error::DbConnectionError)?;
+        let mut conn = self.db_pool.get().map_err(Error::DbConnection)?;
 
         diesel::insert_into(users::table)
             .values(&user)
             .on_conflict_do_nothing()
             .execute(&mut conn)
-            .map_err(Error::DbError)?;
+            .map_err(Error::Db)?;
 
         Ok(user)
     }
@@ -33,7 +33,7 @@ impl<'a> UserService<'a> {
             .filter(users::id.eq(user_id))
             .limit(1)
             .get_result::<User>(&mut conn)
-            .map_err(Error::DbError)?;
+            .map_err(Error::Db)?;
 
         Ok(user)
     }
