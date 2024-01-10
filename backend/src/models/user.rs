@@ -1,7 +1,6 @@
 use async_graphql::SimpleObject;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use crate::db_schema::users;
 
@@ -19,7 +18,7 @@ use crate::db_schema::users;
 )]
 #[diesel(table_name = users)]
 pub struct User {
-    pub id: Uuid,
+    pub id: String,
     pub email: String,
     pub name: String,
     pub created_at: chrono::NaiveDateTime,

@@ -84,6 +84,14 @@ pub async fn login(
         .finish())
 }
 
+pub async fn logout(session: Session) -> Result<HttpResponse, SessionInsertError> {
+    session.purge();
+
+    Ok(HttpResponse::Found()
+        .append_header((header::LOCATION, "/"))
+        .finish())
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthCallback {
     code: AuthorizationCode,
@@ -151,7 +159,7 @@ pub async fn auth_callback(
     };
 
     let new_user = User {
-        id: uuid::Uuid::new_v4(),
+        id: claims.subject().to_string(),
         email,
         name,
         created_at: chrono::Utc::now().naive_utc(),

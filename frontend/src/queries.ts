@@ -8,6 +8,10 @@ export const GET_LOBBY = gql`
       startedAt
       createdAt
       hostId
+      players {
+        id
+        name
+      }
     }
     profile {
       id

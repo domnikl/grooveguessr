@@ -10,6 +10,8 @@ import { gql, useMutation } from "@apollo/client";
 import IsLoading from "./IsLoading";
 import { useEffect, useState } from "react";
 import GuessingTimeSlider from "./GuessingTimeSlider";
+import Players from "./Players";
+import { Player } from "../model/Player";
 
 export const CONFIGURE_LOBBY = gql`
   mutation configureLobby($id: String!, $guessingTime: Int!) {
@@ -27,6 +29,14 @@ export const START_GAME = gql`
   }
 `;
 
+export const JOIN_LOBBY = gql`
+  mutation joinLobby($id: String!) {
+    joinLobby(id: $id) {
+      id
+    }
+  }
+`;
+
 type LobbyProps = {
   id: string;
   isLoading: boolean;
@@ -38,6 +48,7 @@ type LobbyProps = {
 export default function Lobby(props: LobbyProps) {
   const [configureLobby] = useMutation(CONFIGURE_LOBBY);
   const [startGame] = useMutation(START_GAME);
+  const [joinLobby] = useMutation(JOIN_LOBBY);
 
   const [isDirty, setIsDirty] = useState<boolean>(false);
   const [guessingTime, setGuessingTime] = useState<number>(
@@ -45,6 +56,13 @@ export default function Lobby(props: LobbyProps) {
   );
 
   useEffect(() => {
+    // if the user is not yet part of the lobby, join it
+    const playerIds = props.data?.lobby?.players?.map((p: Player) => p.id);
+
+    if (playerIds.indexOf(props.data?.profile?.id) === -1) {
+      joinLobby({ variables: { id: props.data?.lobby?.id } });
+    }
+
     if (isDirty) {
       // don't overwrite if there are pending changes
       return;
@@ -74,8 +92,8 @@ export default function Lobby(props: LobbyProps) {
       <IsLoading isLoading={props.isLoading}>
         <Stack spacing={2}>
           <Typography variant="h1">{props.data?.lobby?.id}</Typography>
-          <Typography variant="h2">Players</Typography>
-          None yet.
+          <Players players={props.data?.lobby?.players} />
+
           <Typography variant="h2">Settings</Typography>
           <FormControl>
             <GuessingTimeSlider

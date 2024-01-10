@@ -67,6 +67,11 @@ fn initialize_db_pool() -> DbPool {
         .expect("Error building r2d2 pool")
 }
 
+fn initialize_redis() -> redis::Client {
+    redis::Client::open(std::env::var("REDIS_URL").expect("REDIS_URL needs to be set"))
+        .expect("Error initializing redis client")
+}
+
 async fn initialize_oidc_client() -> OidcClient {
     Arc::new(
         create_client(OpenIDConnectConfig {
@@ -101,6 +106,8 @@ async fn main() -> std::io::Result<()> {
         .run_pending_migrations(MIGRATIONS)
         .expect("Error running pending migrations");
 
+    let redis = initialize_redis();
+
     let secret_key = Key::from(
         std::env::var("SECRET_KEY")
             .expect("OIDC_CLIENT_SECRET needs to be set")
@@ -112,10 +119,12 @@ async fn main() -> std::io::Result<()> {
 
     let schema = Schema::build(Query, Mutation, EmptySubscription)
         .data(db_pool.clone())
+        .data(redis.clone())
         .finish();
 
     let app_state = AppState {
         db_pool,
+        redis,
         schema,
         oidc_client,
         youtube_client,
@@ -134,6 +143,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(app_data.clone())
             .service(web::resource("/login").to(auth::login))
             .service(web::resource("/auth_callback").to(auth::auth_callback))
+            .service(web::resource("/logout").to(auth::logout))
             .service(
                 web::resource("/graphql")
                     .guard(guard::Get())

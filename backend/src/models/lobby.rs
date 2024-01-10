@@ -2,10 +2,10 @@ use async_graphql::*;
 use diesel::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use crate::{
     db_schema::lobbies,
+    db_schema::lobbies_players,
     services::{user::UserService, Error},
     DbPool,
 };
@@ -30,7 +30,7 @@ pub struct Lobby {
     pub id: String,
     pub started_at: Option<chrono::NaiveDateTime>,
     pub guessing_time: i16,
-    pub host_id: Uuid,
+    pub host_id: String,
     pub created_at: chrono::NaiveDateTime,
 }
 
@@ -49,7 +49,7 @@ impl Default for Lobby {
             started_at: None,
             guessing_time: 80,
             created_at: chrono::Utc::now().naive_utc(),
-            host_id: Uuid::nil(),
+            host_id: "".to_string(),
         }
     }
 }
@@ -62,11 +62,48 @@ impl Lobby {
             .expect("No database connection pool in context");
 
         let user = UserService::new(db_pool)
-            .find(self.host_id)
+            .find(&self.host_id)
             .map_err(|err: Error| err.extend_with(|_, e| e.set("code", 404)))?;
 
         Ok(user)
     }
+
+    async fn players(&self, ctx: &Context<'_>) -> FieldResult<Vec<User>> {
+        let db_pool = ctx
+            .data::<DbPool>()
+            .expect("No database connection pool in context");
+
+        let mut conn = db_pool.get()?;
+
+        let players = lobbies_players::table
+            .filter(lobbies_players::lobby_id.eq(&self.id))
+            .get_results::<LobbyPlayers>(&mut conn)
+            .map_err(Error::DbError)?;
+
+        let mut users = Vec::new();
+
+        for player in players {
+            let user = UserService::new(db_pool)
+                .find(&player.player_id)
+                .map_err(|err: Error| err.extend_with(|_, e| e.set("code", 404)))?;
+
+            users.push(user);
+        }
+
+        Ok(users)
+    }
+}
+
+#[derive(Identifiable, Selectable, Queryable, Associations, Insertable, Debug)]
+#[diesel(belongs_to(Lobby))]
+#[diesel(belongs_to(User, foreign_key = player_id))]
+#[diesel(table_name = lobbies_players)]
+#[diesel(primary_key(lobby_id, player_id, contents_id))]
+pub struct LobbyPlayers {
+    pub lobby_id: String,
+    pub player_id: String,
+    pub contents_id: Option<uuid::Uuid>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[cfg(test)]

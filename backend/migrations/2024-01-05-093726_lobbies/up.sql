@@ -3,7 +3,7 @@ CREATE TABLE lobbies
     "id" CHAR(10) NOT NULL,
     "started_at" TIMESTAMPTZ NULL DEFAULT NULL,
     "guessing_time" SMALLINT NOT NULL,
-    "host_id" UUID NOT NULL,
+    "host_id" VARCHAR(100) NOT NULL,
     "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "lobbies_pkey" PRIMARY KEY ("id"),

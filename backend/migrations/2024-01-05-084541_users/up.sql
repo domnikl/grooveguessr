@@ -1,6 +1,6 @@
 CREATE TABLE users
 (
-    "id" UUID NOT NULL,
+    "id" VARCHAR(100) NOT NULL,
     "email" VARCHAR(70) NOT NULL,
     "name" VARCHAR(70) NOT NULL,
     "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

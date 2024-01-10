@@ -19,15 +19,14 @@ impl<'a> UserService<'a> {
 
         diesel::insert_into(users::table)
             .values(&user)
-            .on_conflict(users::email)
-            .do_nothing()
+            .on_conflict_do_nothing()
             .execute(&mut conn)
             .map_err(Error::DbError)?;
 
         Ok(user)
     }
 
-    pub fn find(&self, user_id: uuid::Uuid) -> Result<User, Error> {
+    pub fn find(&self, user_id: &str) -> Result<User, Error> {
         let mut conn = self.db_pool.get()?;
 
         let user = users::table

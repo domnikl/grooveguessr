@@ -3,14 +3,28 @@ import "@fontsource/moirai-one";
 import "./index.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
-import { ApolloClient, InMemoryCache, ApolloProvider } from "@apollo/client";
+import {
+  ApolloClient,
+  InMemoryCache,
+  ApolloProvider,
+  HttpLink,
+} from "@apollo/client";
+import { onError } from "@apollo/client/link/error";
+
+const loginRedirectLink = onError(({ networkError }: any) => {
+  if (networkError?.statusCode === 401) {
+    window.location.href = "/login";
+  }
+});
+
+const httpLink = new HttpLink({ uri: "/graphql" });
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
 );
 const client = new ApolloClient({
-  uri: "/graphql",
   cache: new InMemoryCache(),
+  link: loginRedirectLink.concat(httpLink),
 });
 
 root.render(

@@ -1,11 +1,13 @@
 use std::fmt::{Display, Formatter};
 
 pub mod lobby;
+pub mod presence;
 pub mod user;
 
 pub enum Error {
     DbError(diesel::result::Error),
     DbConnectionError(r2d2::Error),
+    RedisConnectionError(redis::RedisError),
 }
 
 impl Display for Error {
@@ -13,6 +15,7 @@ impl Display for Error {
         match self {
             Error::DbError(e) => write!(f, "Database Error: {}", e),
             Error::DbConnectionError(e) => write!(f, "Database Connection Error: {}", e),
+            Error::RedisConnectionError(e) => write!(f, "Redis Connection Error: {}", e),
         }
     }
 }
