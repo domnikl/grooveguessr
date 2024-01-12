@@ -18,7 +18,7 @@ openidconnect = { version = "~2", features = ["accept-rfc3339-timestamps"] }
 actix-session = { version = "0.7.2", features = ["cookie-session"] }
 chrono = { version = "0.4.24", features = ["serde"] }
 hyper-rustls = { version = "0.24.0", features = ["http2"] }
-google-youtube3 = { version = "5.0.2" }
+google-youtube3 = { version = "5.0.3+20230123" }
 env_logger = "0.10.0"
 log = "0.4.17"
 futures-util = "0.3.28"
