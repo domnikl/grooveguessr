@@ -7,10 +7,14 @@ export const GET_LOBBY = gql`
       guessingTime
       startedAt
       createdAt
-      hostId
+      host {
+        id
+        name
+      }
       players {
         id
         name
+        isReady
       }
     }
     profile {

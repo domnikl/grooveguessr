@@ -35,6 +35,7 @@ diesel::table! {
         #[max_length = 100]
         player_id -> Varchar,
         contents_id -> Nullable<Uuid>,
+        is_ready -> Bool,
         created_at -> Timestamptz,
     }
 }

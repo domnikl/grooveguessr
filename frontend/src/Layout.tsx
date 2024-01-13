@@ -18,7 +18,7 @@ export default function Layout() {
             <Typography
               variant="h1"
               component="div"
-              sx={{ flexGrow: 1, cursor: "pointer" }}
+              sx={{ flexGrow: 1, cursor: "pointer", fontSize: "2rem" }}
               onClick={() => navigate("/")}
             >
               GrooveGuessr

@@ -61,6 +61,7 @@ impl<'a> LobbyService<'a> {
         let lobby_player = LobbyPlayers {
             lobby_id: lobby.id.clone(),
             player_id: user.id.clone(),
+            is_ready: false,
             contents_id: None,
             created_at: chrono::Utc::now(),
         };
@@ -98,6 +99,22 @@ impl<'a> LobbyService<'a> {
         diesel::update(lobbies)
             .filter(id.eq(lobby.id.clone()))
             .set(started_at.eq(chrono::Utc::now().naive_utc()))
+            .execute(&mut conn)
+            .map_err(Error::Db)?;
+
+        Ok(lobby)
+    }
+
+    pub fn set_ready(&self, lobby: Lobby, user: &User, ready: bool) -> Result<Lobby, Error> {
+        let mut conn = self.db_pool.get()?;
+
+        diesel::update(lobbies_players::table)
+            .filter(
+                lobbies_players::lobby_id
+                    .eq(&lobby.id)
+                    .and(lobbies_players::player_id.eq(&user.id)),
+            )
+            .set(lobbies_players::is_ready.eq(&ready))
             .execute(&mut conn)
             .map_err(Error::Db)?;
 

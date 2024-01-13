@@ -29,9 +29,17 @@ export const START_GAME = gql`
   }
 `;
 
-export const JOIN_LOBBY = gql`
+const JOIN_LOBBY = gql`
   mutation joinLobby($id: String!) {
     joinLobby(id: $id) {
+      id
+    }
+  }
+`;
+
+const SET_READY = gql`
+  mutation setReady($id: String!, $ready: Boolean!) {
+    setReady(id: $id, ready: $ready) {
       id
     }
   }
@@ -49,6 +57,7 @@ export default function Lobby(props: LobbyProps) {
   const [configureLobby] = useMutation(CONFIGURE_LOBBY);
   const [startGame] = useMutation(START_GAME);
   const [joinLobby] = useMutation(JOIN_LOBBY);
+  const [setReady] = useMutation(SET_READY);
 
   const [isDirty, setIsDirty] = useState<boolean>(false);
   const [guessingTime, setGuessingTime] = useState<number>(
@@ -69,15 +78,13 @@ export default function Lobby(props: LobbyProps) {
     }
 
     setGuessingTime(props.data?.lobby?.guessingTime);
-  }, [props.data, isDirty]);
+  }, [props.data, isDirty, joinLobby]);
 
   const handleChangeCommitted = (guessingTime: number) => {
-    if (props.data?.lobby?.hostId !== props.data?.profile?.id) {
+    if (props.data?.lobby?.host?.id !== props.data?.profile?.id) {
       // only host can update game settings
       return;
     }
-
-    console.log({ message: "handleChangeCommitted", guessingTime });
 
     configureLobby({
       variables: { id: props.data?.lobby?.id, guessingTime },
@@ -87,32 +94,72 @@ export default function Lobby(props: LobbyProps) {
     });
   };
 
+  const player = props.data?.lobby?.players?.filter(
+    (p: Player) => p.id === props.data?.profile?.id
+  )[0];
+  const isHost = props.data?.lobby?.host?.id === player?.id;
+  const everyoneReady = props.data?.lobby?.players?.every(
+    (p: Player) => p.isReady
+  );
+  const numberOfPlayers = props.data?.lobby?.players?.length;
+
   return (
     <Container maxWidth="sm">
       <IsLoading isLoading={props.isLoading}>
-        <Stack spacing={2}>
-          <Typography variant="h1">{props.data?.lobby?.id}</Typography>
-          <Players players={props.data?.lobby?.players} />
+        <Stack spacing={4} direction="row">
+          <Stack spacing={4}>
+            <Typography variant="h1">
+              {props.data?.lobby?.host?.name}'s Lobby
+            </Typography>
 
-          <Typography variant="h2">Settings</Typography>
-          <FormControl>
-            <GuessingTimeSlider
-              ariaLabel="Guessing Time"
-              defaultValue={120}
-              min={10}
-              max={4 * 60}
-              disabled={props.data?.lobby?.hostId !== props.data?.profile?.id}
-              guessingTime={guessingTime ?? 120}
-              onChangeCommitted={handleChangeCommitted}
-              onChange={(guessingTime) => {
-                props.stopPolling();
-                setGuessingTime(guessingTime);
-              }}
-            />
-          </FormControl>
-          <FormControl>
-            <Typography variant="h2">Start Game</Typography>
+            <Typography variant="h2">Lobby Settings</Typography>
+
+            <Typography variant="h2">Game Settings</Typography>
+
+            <FormControl>
+              <GuessingTimeSlider
+                ariaLabel="Guessing Time"
+                defaultValue={120}
+                min={10}
+                max={3 * 60}
+                disabled={!isHost}
+                guessingTime={guessingTime ?? 120}
+                onChangeCommitted={handleChangeCommitted}
+                onChange={(guessingTime) => {
+                  props.stopPolling();
+                  setGuessingTime(guessingTime);
+                }}
+              />
+            </FormControl>
+          </Stack>
+
+          <Players players={props.data?.lobby?.players} />
+        </Stack>
+
+        <Stack direction="row">
+          <Button
+            size="large"
+            variant="contained"
+            onClick={() => {
+              props.stopPolling();
+
+              setReady({
+                variables: {
+                  id: props.data?.lobby?.id,
+                  ready: !player?.isReady,
+                },
+              }).then(() => {
+                props.startPolling();
+              });
+            }}
+          >
+            {!player?.isReady ? "Ready" : "Not Ready"}
+          </Button>
+
+          {isHost && everyoneReady && numberOfPlayers >= 3 && (
             <Button
+              size="large"
+              variant="contained"
               onClick={() => {
                 props.stopPolling();
                 startGame({ variables: { id: props.data?.lobby?.id } }).then(
@@ -124,7 +171,7 @@ export default function Lobby(props: LobbyProps) {
             >
               Start Game
             </Button>
-          </FormControl>
+          )}
         </Stack>
       </IsLoading>
     </Container>

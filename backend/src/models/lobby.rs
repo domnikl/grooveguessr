@@ -54,6 +54,14 @@ impl Default for Lobby {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
+struct Player {
+    id: String,
+    name: String,
+    is_ready: bool,
+    contents_id: Option<uuid::Uuid>,
+}
+
 #[ComplexObject]
 impl Lobby {
     async fn host(&self, ctx: &Context<'_>) -> FieldResult<User> {
@@ -68,7 +76,7 @@ impl Lobby {
         Ok(user)
     }
 
-    async fn players(&self, ctx: &Context<'_>) -> FieldResult<Vec<User>> {
+    async fn players(&self, ctx: &Context<'_>) -> FieldResult<Vec<Player>> {
         let db_pool = ctx
             .data::<DbPool>()
             .expect("No database connection pool in context");
@@ -80,14 +88,21 @@ impl Lobby {
             .get_results::<LobbyPlayers>(&mut conn)
             .map_err(Error::Db)?;
 
-        let mut users = Vec::new();
+        let mut users: Vec<Player> = Vec::new();
 
         for player in players {
             let user = UserService::new(db_pool)
                 .find(&player.player_id)
                 .map_err(|err: Error| err.extend_with(|_, e| e.set("code", 404)))?;
 
-            users.push(user);
+            let new_player = Player {
+                id: user.id.clone(),
+                name: user.name.clone(),
+                is_ready: player.is_ready,
+                contents_id: player.contents_id,
+            };
+
+            users.push(new_player);
         }
 
         Ok(users)
@@ -103,6 +118,7 @@ pub struct LobbyPlayers {
     pub lobby_id: String,
     pub player_id: String,
     pub contents_id: Option<uuid::Uuid>,
+    pub is_ready: bool,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 

@@ -90,6 +90,16 @@ impl Mutation {
         Ok(lobby)
     }
 
+    async fn set_ready(&self, ctx: &Context<'_>, id: String, ready: bool) -> FieldResult<Lobby> {
+        let user_info = ctx.data::<UserInfo>().unwrap();
+        let presence_service = presence_service(ctx);
+        let service = lobby_service(ctx, &presence_service);
+        let lobby = service.find(id, &user_info.user)?;
+        let lobby = service.set_ready(lobby, &user_info.user, ready)?;
+
+        Ok(lobby)
+    }
+
     async fn start_game(&self, ctx: &Context<'_>, id: String) -> FieldResult<Lobby> {
         let user_info = ctx.data::<UserInfo>().unwrap();
         let presence_service = presence_service(ctx);

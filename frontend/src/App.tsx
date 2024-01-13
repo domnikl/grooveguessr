@@ -6,6 +6,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import Game, { loader as gameLoader } from "./pages/Game";
 import ErrorBoundary from "./pages/ErrorBoundary";
+import { themeOptions } from "./theme";
 
 const router = createHashRouter([
   {
@@ -20,24 +21,7 @@ const router = createHashRouter([
 ]);
 
 export default function App() {
-  const theme = createTheme({
-    palette: {
-      primary: {
-        main: "#6489E8",
-      },
-      mode: "dark",
-    },
-    typography: {
-      h1: {
-        fontFamily: "Moirai One",
-        fontSize: "2.5rem",
-      },
-      h2: {
-        fontFamily: "Moirai One",
-        fontSize: "1.5rem",
-      },
-    },
-  });
+  const theme = createTheme(themeOptions);
 
   return (
     <ThemeProvider theme={theme}>
