@@ -1,5 +1,8 @@
 use std::fmt::{Display, Formatter};
 
+use crate::youtube;
+
+pub mod contents;
 pub mod lobby;
 pub mod presence;
 pub mod user;
@@ -8,6 +11,7 @@ pub enum Error {
     Db(diesel::result::Error),
     DbConnection(r2d2::Error),
     RedisConnection(redis::RedisError),
+    Youtube(youtube::YoutubeError),
 }
 
 impl Display for Error {
@@ -16,6 +20,7 @@ impl Display for Error {
             Error::Db(e) => write!(f, "Database Error: {}", e),
             Error::DbConnection(e) => write!(f, "Database Connection Error: {}", e),
             Error::RedisConnection(e) => write!(f, "Redis Connection Error: {}", e),
+            Error::Youtube(e) => write!(f, "Youtube Error: {}", e),
         }
     }
 }

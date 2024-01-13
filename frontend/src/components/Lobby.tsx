@@ -102,6 +102,8 @@ export default function Lobby(props: LobbyProps) {
     (p: Player) => p.isReady
   );
   const numberOfPlayers = props.data?.lobby?.players?.length;
+  //const readyToStart = everyoneReady && numberOfPlayers >= 3;
+  const readyToStart = everyoneReady;
 
   return (
     <Container maxWidth="sm">
@@ -156,7 +158,7 @@ export default function Lobby(props: LobbyProps) {
             {!player?.isReady ? "Ready" : "Not Ready"}
           </Button>
 
-          {isHost && everyoneReady && numberOfPlayers >= 3 && (
+          {isHost && readyToStart && (
             <Button
               size="large"
               variant="contained"

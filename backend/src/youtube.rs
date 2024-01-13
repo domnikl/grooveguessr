@@ -1,7 +1,9 @@
+use async_graphql::SimpleObject;
 use google_youtube3::client::NoToken;
 use google_youtube3::hyper::client::HttpConnector;
 use google_youtube3::{hyper, Error, YouTube};
 use hyper_rustls::HttpsConnector;
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 pub type Youtube = Arc<YoutubeClient>;
@@ -12,20 +14,31 @@ pub enum YoutubeError {
     NotFound,
 }
 
+impl Display for YoutubeError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            YoutubeError::Unknown(e) => write!(f, "Youtube Error: {}", e),
+            YoutubeError::NotFound => write!(f, "Youtube Error: Not Found"),
+        }
+    }
+}
+
 pub struct YoutubeClient {
     key: String,
     hub: YouTube<HttpsConnector<HttpConnector>>,
 }
 
+#[derive(Debug, SimpleObject)]
 pub struct Video {
     pub id: String,
+    pub url: String,
     pub platform: String,
     pub title: String,
     pub description: String,
+    pub channel: String,
     pub published_at: chrono::DateTime<chrono::Utc>,
     pub thumbnail_url: String,
 }
-
 
 impl YoutubeClient {
     pub fn new(key: String) -> Self {
@@ -49,7 +62,7 @@ impl YoutubeClient {
             .hub
             .search()
             .list(&vec!["snippet".into()])
-            .q(format!("{} conference", term).as_str())
+            .q(term.as_str())
             .safe_search("strict")
             .max_results(max_results)
             .param("key", self.key.as_str())
@@ -66,48 +79,20 @@ impl YoutubeClient {
                 .filter(|e| e.id.clone().unwrap().kind.unwrap() == "youtube#video")
                 .map(|e| {
                     let snippet = e.snippet.unwrap();
+                    let id = e.id.unwrap();
 
                     Video {
-                        id: e.id.unwrap().video_id.unwrap(),
+                        id: id.video_id.clone().unwrap(),
                         platform: "youtube".into(),
                         title: snippet.title.unwrap(),
                         description: snippet.description.unwrap(),
                         published_at: snippet.published_at.unwrap(),
+                        channel: snippet.channel_title.unwrap(),
+                        url: format!("https://www.youtube.com/watch?v={}", id.video_id.unwrap()),
                         thumbnail_url: snippet.thumbnails.unwrap().medium.unwrap().url.unwrap(),
                     }
                 })
                 .collect()),
-        }
-    }
-
-    pub async fn find_by_id(&self, id: String) -> Result<Video, YoutubeError> {
-        let results = self
-            .hub
-            .videos()
-            .list(&vec!["id".into(), "snippet".into()])
-            .add_id(id.as_str())
-            .param("key", self.key.as_str())
-            .doit()
-            .await
-            .map_err(YoutubeError::Unknown)?
-            .1
-            .items;
-
-        match results {
-            None => Err(YoutubeError::NotFound),
-            Some(e) => {
-                let video = e.first().unwrap();
-                let snippet = video.snippet.clone().unwrap();
-
-                Ok(Video {
-                    id: video.id.clone().unwrap(),
-                    platform: "youtube".into(),
-                    title: snippet.title.unwrap(),
-                    description: snippet.description.unwrap(),
-                    published_at: snippet.published_at.unwrap(),
-                    thumbnail_url: snippet.thumbnails.unwrap().medium.unwrap().url.unwrap(),
-                })
-            }
         }
     }
 }

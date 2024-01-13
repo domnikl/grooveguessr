@@ -2,10 +2,12 @@ use async_graphql::{Context, EmptySubscription, ErrorExtensions, FieldResult, Ob
 
 use crate::auth::UserInfo;
 use crate::models::user::User;
+use crate::services::contents::ContentsService;
 use crate::services::lobby::LobbyService;
 use crate::services::presence::PresenceService;
 use crate::services::user::UserService;
 use crate::services::Error;
+use crate::youtube::{Video, Youtube};
 use crate::{models::lobby::Lobby, DbPool};
 
 pub struct Query;
@@ -14,6 +16,10 @@ pub struct Mutation;
 fn db_pool<'a>(ctx: &Context<'a>) -> &'a DbPool {
     ctx.data::<DbPool>()
         .expect("No database connection pool in context")
+}
+
+fn youtube_client<'a>(ctx: &Context<'a>) -> &'a Youtube {
+    ctx.data::<Youtube>().expect("No youtube client in context")
 }
 
 fn presence_service<'a>(ctx: &Context<'a>) -> PresenceService<'a> {
@@ -25,6 +31,10 @@ fn lobby_service<'a>(
     presence_service: &'a PresenceService<'a>,
 ) -> LobbyService<'a> {
     LobbyService::new(db_pool(ctx), presence_service)
+}
+
+fn contents_service<'a>(ctx: &Context<'a>) -> ContentsService<'a> {
+    ContentsService::new(youtube_client(ctx))
 }
 
 #[Object]
@@ -45,6 +55,15 @@ impl Query {
 
         service
             .find(id, &ctx.data::<UserInfo>().unwrap().user)
+            .map_err(|err: Error| err.extend_with(|_, e| e.set("code", 404)))
+    }
+
+    async fn contents(&self, ctx: &Context<'_>, term: String) -> FieldResult<Vec<Video>> {
+        let service = contents_service(ctx);
+
+        service
+            .search(term.as_str())
+            .await
             .map_err(|err: Error| err.extend_with(|_, e| e.set("code", 404)))
     }
 }

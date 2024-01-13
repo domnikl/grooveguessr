@@ -19,14 +19,10 @@ use diesel::r2d2;
 use dotenvy::dotenv;
 
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use grooveguessr_backend::youtube::YoutubeClient;
 use grooveguessr_backend::{
-    auth,
-    auth::create_client,
-    auth::OpenIDConnectConfig,
-    auth::UserInfo,
-    auth_middleware::AuthRequired,
-    youtube::{Youtube, YoutubeClient},
-    OidcClient,
+    auth, auth::create_client, auth::OpenIDConnectConfig, auth::UserInfo,
+    auth_middleware::AuthRequired, youtube::Youtube, OidcClient,
 };
 use grooveguessr_backend::{AppState, DbPool, Mutation, Query};
 
@@ -119,6 +115,7 @@ async fn main() -> std::io::Result<()> {
 
     let schema = Schema::build(Query, Mutation, EmptySubscription)
         .data(db_pool.clone())
+        .data(youtube_client.clone())
         .data(redis.clone())
         .finish();
 

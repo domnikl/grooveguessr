@@ -1,4 +1,5 @@
 import { Slider, Stack, Typography } from "@mui/material";
+import { formatTime } from "../utils";
 
 type GuessingTimeSliderProps = {
   guessingTime: number;
@@ -14,15 +15,6 @@ type GuessingTimeSliderProps = {
 export default function GuessingTimeSlider(props: GuessingTimeSliderProps) {
   const mapValue = (value: number) => {
     return Math.ceil((value as number) / 10) * 10;
-  };
-
-  const displayValue = (value: number) => {
-    const minutes = Math.floor(value / 60);
-    const seconds = value % 60;
-
-    return `${minutes.toString().padStart(2, "0")}:${seconds
-      .toString()
-      .padStart(2, "0")}`;
   };
 
   return (
@@ -44,7 +36,7 @@ export default function GuessingTimeSlider(props: GuessingTimeSliderProps) {
               props.onChangeCommitted(mapValue(value as number));
             }}
           />
-          <Typography>{displayValue(props.guessingTime)}</Typography>
+          <Typography>{formatTime(props.guessingTime)}</Typography>
         </Stack>
       </Stack>
     </Stack>

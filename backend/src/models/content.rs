@@ -20,5 +20,9 @@ use crate::db_schema::contents;
 #[diesel(table_name = contents)]
 pub struct Contents {
     pub id: Uuid,
+    pub type_: String,
+    pub data: String,
+    pub user_id: String,
+    pub lobby_id: String,
     pub created_at: chrono::NaiveDateTime,
 }
