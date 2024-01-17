@@ -22,7 +22,7 @@ export default function GameLoop(props: GameLoopProps) {
         clearInterval(interval);
       }
     }, 1000);
-  }, [props.lobby]);
+  }, [props.lobby, timer]);
 
   return (
     <Container maxWidth="sm">

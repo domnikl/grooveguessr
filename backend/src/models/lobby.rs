@@ -4,13 +4,14 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    auth::UserInfo,
     db_schema::lobbies,
     db_schema::lobbies_players,
-    services::{user::UserService, Error},
+    services::{content::ContentService, user::UserService, Error},
     DbPool,
 };
 
-use super::user::User;
+use super::{content::Contents, user::User};
 
 #[derive(
     Debug,
@@ -59,7 +60,6 @@ struct Player {
     id: String,
     name: String,
     is_ready: bool,
-    contents_id: Option<uuid::Uuid>,
 }
 
 #[ComplexObject]
@@ -74,6 +74,18 @@ impl Lobby {
             .map_err(|err: Error| err.extend_with(|_, e| e.set("code", 404)))?;
 
         Ok(user)
+    }
+
+    async fn content(&self, ctx: &Context<'_>) -> FieldResult<Option<Contents>> {
+        let db_pool = ctx
+            .data::<DbPool>()
+            .expect("No database connection pool in context");
+
+        let content = ContentService::new(db_pool)
+            .find(self, &ctx.data::<UserInfo>().unwrap().user)
+            .map_err(|err: Error| err.extend_with(|_, e| e.set("code", 404)))?;
+
+        Ok(content)
     }
 
     async fn players(&self, ctx: &Context<'_>) -> FieldResult<Vec<Player>> {
@@ -99,7 +111,6 @@ impl Lobby {
                 id: user.id.clone(),
                 name: user.name.clone(),
                 is_ready: player.is_ready,
-                contents_id: player.contents_id,
             };
 
             users.push(new_player);
@@ -113,11 +124,10 @@ impl Lobby {
 #[diesel(belongs_to(Lobby))]
 #[diesel(belongs_to(User, foreign_key = player_id))]
 #[diesel(table_name = lobbies_players)]
-#[diesel(primary_key(lobby_id, player_id, contents_id))]
+#[diesel(primary_key(lobby_id, player_id))]
 pub struct LobbyPlayers {
     pub lobby_id: String,
     pub player_id: String,
-    pub contents_id: Option<uuid::Uuid>,
     pub is_ready: bool,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }

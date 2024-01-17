@@ -6,3 +6,12 @@ export function formatTime(value: number): String {
     .toString()
     .padStart(2, "0")}`;
 }
+
+export function validateUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}

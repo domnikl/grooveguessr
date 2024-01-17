@@ -16,6 +16,10 @@ export const GET_LOBBY = gql`
         name
         isReady
       }
+      content {
+        data
+        type
+      }
     }
     profile {
       id

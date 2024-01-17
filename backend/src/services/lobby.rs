@@ -1,8 +1,12 @@
 use crate::{
-    db_schema::{lobbies::dsl::*, lobbies_players},
+    db_schema::{
+        contents::{self},
+        lobbies::dsl::*,
+        lobbies_players,
+    },
     models::{lobby::LobbyPlayers, user::User},
 };
-use diesel::{associations::HasTable, prelude::*};
+use diesel::{associations::HasTable, prelude::*, upsert::on_constraint};
 
 use crate::{models::lobby::Lobby, DbPool};
 
@@ -62,7 +66,6 @@ impl<'a> LobbyService<'a> {
             lobby_id: lobby.id.clone(),
             player_id: user.id.clone(),
             is_ready: false,
-            contents_id: None,
             created_at: chrono::Utc::now(),
         };
 
@@ -115,6 +118,26 @@ impl<'a> LobbyService<'a> {
                     .and(lobbies_players::player_id.eq(&user.id)),
             )
             .set(lobbies_players::is_ready.eq(&ready))
+            .execute(&mut conn)
+            .map_err(Error::Db)?;
+
+        Ok(lobby)
+    }
+
+    pub fn set_content(&self, lobby: Lobby, user: &User, url: String) -> Result<Lobby, Error> {
+        let mut conn = self.db_pool.get()?;
+
+        diesel::insert_into(contents::table)
+            .values((
+                contents::user_id.eq(user.id.clone()),
+                contents::data.eq(url.clone()),
+                contents::type_.eq("url"),
+                contents::lobby_id.eq(lobby.id.clone()),
+                contents::created_at.eq(chrono::Utc::now().naive_utc()),
+            ))
+            .on_conflict(on_constraint("contents_pkey"))
+            .do_update()
+            .set((contents::data.eq(url), contents::type_.eq("url")))
             .execute(&mut conn)
             .map_err(Error::Db)?;
 

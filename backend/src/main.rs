@@ -19,10 +19,9 @@ use diesel::r2d2;
 use dotenvy::dotenv;
 
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use grooveguessr_backend::youtube::YoutubeClient;
 use grooveguessr_backend::{
     auth, auth::create_client, auth::OpenIDConnectConfig, auth::UserInfo,
-    auth_middleware::AuthRequired, youtube::Youtube, OidcClient,
+    auth_middleware::AuthRequired, OidcClient,
 };
 use grooveguessr_backend::{AppState, DbPool, Mutation, Query};
 
@@ -83,12 +82,6 @@ async fn initialize_oidc_client() -> OidcClient {
     )
 }
 
-fn initialize_youtube() -> Youtube {
-    Arc::new(YoutubeClient::new(
-        std::env::var("YOUTUBE_API_KEY").expect("YOUTUBE_API_KEY needs to be set"),
-    ))
-}
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
@@ -111,11 +104,9 @@ async fn main() -> std::io::Result<()> {
     );
 
     let oidc_client = initialize_oidc_client().await;
-    let youtube_client = initialize_youtube();
 
     let schema = Schema::build(Query, Mutation, EmptySubscription)
         .data(db_pool.clone())
-        .data(youtube_client.clone())
         .data(redis.clone())
         .finish();
 
@@ -124,7 +115,6 @@ async fn main() -> std::io::Result<()> {
         redis,
         schema,
         oidc_client,
-        youtube_client,
     };
     let app_data = Data::new(app_state);
 

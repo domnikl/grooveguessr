@@ -1,10 +1,4 @@
-import {
-  Button,
-  Container,
-  FormControl,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Button, Container, Stack, Typography } from "@mui/material";
 
 import { gql, useMutation } from "@apollo/client";
 import IsLoading from "./IsLoading";
@@ -12,6 +6,8 @@ import { useEffect, useState } from "react";
 import GuessingTimeSlider from "./GuessingTimeSlider";
 import Players from "./Players";
 import { Player } from "../model/Player";
+import ContentChooser from "./ContentChooser";
+import ElevatedPaper from "./ElevatedPaper";
 
 export const CONFIGURE_LOBBY = gql`
   mutation configureLobby($id: String!, $guessingTime: Int!) {
@@ -102,23 +98,31 @@ export default function Lobby(props: LobbyProps) {
     (p: Player) => p.isReady
   );
   const numberOfPlayers = props.data?.lobby?.players?.length;
-  //const readyToStart = everyoneReady && numberOfPlayers >= 3;
-  const readyToStart = everyoneReady;
+  const readyToStart = everyoneReady && numberOfPlayers >= 1; // TODO: only start if numberOfPlayers >= 3
+
+  let readyCaption = "Ready";
+  let readyColor: "success" | "error" = "success";
+
+  if (player?.isReady) {
+    readyCaption = "Not Ready";
+    readyColor = "error";
+  }
 
   return (
-    <Container maxWidth="sm">
+    <Container maxWidth="md">
       <IsLoading isLoading={props.isLoading}>
+        <Typography
+          variant="h1"
+          sx={{ marginBottom: "50px", marginTop: "100px" }}
+        >
+          {props.data?.lobby?.host?.name}'s Lobby
+        </Typography>
+
         <Stack spacing={4} direction="row">
           <Stack spacing={4}>
-            <Typography variant="h1">
-              {props.data?.lobby?.host?.name}'s Lobby
-            </Typography>
+            <ElevatedPaper>
+              <Typography variant="h2">Game Settings</Typography>
 
-            <Typography variant="h2">Lobby Settings</Typography>
-
-            <Typography variant="h2">Game Settings</Typography>
-
-            <FormControl>
               <GuessingTimeSlider
                 ariaLabel="Guessing Time"
                 defaultValue={120}
@@ -132,48 +136,60 @@ export default function Lobby(props: LobbyProps) {
                   setGuessingTime(guessingTime);
                 }}
               />
-            </FormControl>
+            </ElevatedPaper>
+
+            <ElevatedPaper>
+              <ContentChooser
+                onContentSelected={(e) => console.log(e)}
+                lobbyId={props.data?.lobby?.id}
+                defaultUrl={props.data?.lobby?.content?.data}
+              />
+            </ElevatedPaper>
           </Stack>
 
-          <Players players={props.data?.lobby?.players} />
-        </Stack>
+          <Stack>
+            <Players players={props.data?.lobby?.players} />
 
-        <Stack direction="row">
-          <Button
-            size="large"
-            variant="contained"
-            onClick={() => {
-              props.stopPolling();
+            <Stack justifyItems="stretch">
+              <Button
+                size="large"
+                variant="contained"
+                color={readyColor}
+                onClick={() => {
+                  props.stopPolling();
 
-              setReady({
-                variables: {
-                  id: props.data?.lobby?.id,
-                  ready: !player?.isReady,
-                },
-              }).then(() => {
-                props.startPolling();
-              });
-            }}
-          >
-            {!player?.isReady ? "Ready" : "Not Ready"}
-          </Button>
-
-          {isHost && readyToStart && (
-            <Button
-              size="large"
-              variant="contained"
-              onClick={() => {
-                props.stopPolling();
-                startGame({ variables: { id: props.data?.lobby?.id } }).then(
-                  () => {
+                  setReady({
+                    variables: {
+                      id: props.data?.lobby?.id,
+                      ready: !player?.isReady,
+                    },
+                  }).then(() => {
                     props.startPolling();
-                  }
-                );
-              }}
-            >
-              Start Game
-            </Button>
-          )}
+                  });
+                }}
+              >
+                {readyCaption}
+              </Button>
+
+              {isHost && readyToStart && (
+                <Button
+                  size="large"
+                  variant="contained"
+                  color="success"
+                  onClick={() => {
+                    props.stopPolling();
+                    startGame({
+                      variables: { id: props.data?.lobby?.id },
+                    }).then(() => {
+                      props.startPolling();
+                    });
+                  }}
+                >
+                  Start Game
+                </Button>
+              )}
+            </Stack>
+          </Stack>
         </Stack>
       </IsLoading>
     </Container>

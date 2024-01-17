@@ -1,6 +1,6 @@
 import { Badge, Stack, Typography } from "@mui/material";
 import { Player } from "../model/Player";
-import { Check } from "@mui/icons-material";
+import { Check, Close } from "@mui/icons-material";
 
 type PlayersProps = {
   players: Player[];
@@ -13,11 +13,13 @@ export default function Players(props: PlayersProps) {
 
       {props.players.map((player: Player) =>
         player.isReady ? (
-          <Badge badgeContent={<Check />} color="primary" key={player.id}>
+          <Badge badgeContent={<Check />} color="success" key={player.id}>
             <Typography key={player.id}>{player.name}</Typography>
           </Badge>
         ) : (
-          <Typography key={player.id}>{player.name}</Typography>
+          <Badge badgeContent={<Close />} color="error" key={player.id}>
+            <Typography key={player.id}>{player.name}</Typography>
+          </Badge>
         )
       )}
     </Stack>
