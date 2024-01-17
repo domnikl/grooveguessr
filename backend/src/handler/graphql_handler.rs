@@ -27,6 +27,10 @@ fn lobby_service<'a>(
     LobbyService::new(db_pool(ctx), presence_service)
 }
 
+fn user_service<'a>(ctx: &Context<'a>) -> UserService<'a> {
+    UserService::new(db_pool(ctx))
+}
+
 #[Object]
 impl Query {
     async fn profile(&self, ctx: &Context<'_>) -> FieldResult<User> {
@@ -85,7 +89,8 @@ impl Mutation {
         let user_info = ctx.data::<UserInfo>().unwrap();
         let presence_service = presence_service(ctx);
         let service = lobby_service(ctx, &presence_service);
-        let lobby = service.join(id, &user_info.user)?;
+        let lobby = service.find(id, &user_info.user)?;
+        let lobby = service.join(&lobby, &user_info.user)?;
 
         Ok(lobby)
     }
@@ -118,6 +123,17 @@ impl Mutation {
         lobby = service.start_game(lobby, &user_info.user)?;
 
         Ok(lobby)
+    }
+
+    async fn set_name(&self, ctx: &Context<'_>, name: String) -> FieldResult<User> {
+        let user_info = ctx.data::<UserInfo>().unwrap();
+        let service = user_service(ctx);
+        let mut user = service.find(&user_info.user.id)?;
+        user.name = name;
+
+        user = service.save(user)?;
+
+        Ok(user)
     }
 }
 

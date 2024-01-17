@@ -1,5 +1,5 @@
 use crate::models::user::User;
-use crate::services::user::UserService;
+use crate::services::user::{generate_random_name, UserService};
 use crate::AppState;
 use actix_session::{Session, SessionInsertError};
 use actix_web::http::header;
@@ -155,7 +155,7 @@ pub async fn auth_callback(
     let email = claims.email().unwrap().to_string();
     let name = match claims.given_name() {
         Some(name_claim) => name_claim.get(None).unwrap().to_string(),
-        None => email.clone(),
+        None => generate_random_name(),
     };
 
     let new_user = User {

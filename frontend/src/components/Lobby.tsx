@@ -148,7 +148,10 @@ export default function Lobby(props: LobbyProps) {
           </Stack>
 
           <Stack>
-            <Players players={props.data?.lobby?.players} />
+            <Players
+              players={props.data?.lobby?.players}
+              editableId={props.data?.profile?.id}
+            />
 
             <Stack justifyItems="stretch">
               <Button

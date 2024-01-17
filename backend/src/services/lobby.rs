@@ -4,11 +4,11 @@ use crate::{
         lobbies::dsl::*,
         lobbies_players,
     },
-    models::{lobby::LobbyPlayers, user::User},
+    models::{content::Contents, lobby::LobbyPlayers, user::User},
 };
-use diesel::{associations::HasTable, prelude::*, upsert::on_constraint};
-
 use crate::{models::lobby::Lobby, DbPool};
+use diesel::{associations::HasTable, prelude::*, upsert::on_constraint};
+use rand::seq::SliceRandom;
 
 use super::{presence::PresenceService, Error};
 
@@ -28,23 +28,21 @@ impl<'a> LobbyService<'a> {
     pub fn create(&self, lobby: Lobby, user: &User) -> Result<Lobby, Error> {
         let mut conn = self.db_pool.get().map_err(Error::DbConnection)?;
 
-        // TODO: run this in a transaction
-
         diesel::insert_into(lobbies)
             .values(&lobby)
             .execute(&mut conn)
             .map_err(Error::Db)?;
 
-        self.join(lobby.id.clone(), user)?;
+        self.join(&lobby, user)?;
 
         Ok(lobby)
     }
 
-    pub fn find(&self, lobby_id: String, user: &User) -> Result<Lobby, Error> {
+    pub fn find(&self, by_lobby_id: String, user: &User) -> Result<Lobby, Error> {
         let mut conn = self.db_pool.get()?;
 
         let lobby = lobbies
-            .filter(id.eq(lobby_id))
+            .filter(id.eq(by_lobby_id))
             .limit(1)
             .get_result::<Lobby>(&mut conn)
             .map_err(Error::Db)?;
@@ -57,10 +55,8 @@ impl<'a> LobbyService<'a> {
         Ok(lobby)
     }
 
-    pub fn join(&self, lobby_id: String, user: &User) -> Result<Lobby, Error> {
+    pub fn join(&self, lobby: &Lobby, user: &User) -> Result<Lobby, Error> {
         let mut conn = self.db_pool.get()?;
-
-        let lobby = self.find(lobby_id, user)?;
 
         let lobby_player = LobbyPlayers {
             lobby_id: lobby.id.clone(),
@@ -75,15 +71,17 @@ impl<'a> LobbyService<'a> {
             .execute(&mut conn)
             .map_err(Error::Db)?;
 
-        self.presence_service.heartbeat(&lobby, user)?;
+        self.presence_service.heartbeat(lobby, user)?;
 
-        Ok(lobby)
+        Ok(lobby.clone())
     }
 
     pub fn configure(&self, lobby: Lobby, _user: &User) -> Result<Lobby, Error> {
         let mut conn = self.db_pool.get()?;
 
-        // TODO: verifiy user has the permission to configure the lobby!
+        if lobby.host_id != _user.id {
+            return Err(Error::Unauthorized);
+        }
 
         diesel::update(lobbies)
             .filter(id.eq(lobby.id.clone()))
@@ -94,16 +92,57 @@ impl<'a> LobbyService<'a> {
         Ok(lobby)
     }
 
-    pub fn start_game(&self, lobby: Lobby, _user: &User) -> Result<Lobby, Error> {
+    pub fn start_game(&self, lobby: Lobby, user: &User) -> Result<Lobby, Error> {
         let mut conn = self.db_pool.get()?;
 
-        // TODO: verifiy user has the permission to start the game!
+        if lobby.host_id != user.id {
+            return Err(Error::Unauthorized);
+        }
+
+        if lobby.started_at.is_some() {
+            return Err(Error::GameAlreadyStarted);
+        }
+
+        // TODO: run it in a transaction
+        let players = lobbies_players::table
+            .filter(lobbies_players::lobby_id.eq(&lobby.id))
+            .get_results::<LobbyPlayers>(&mut conn)
+            .map_err(Error::Db)?;
+
+        if players.len() < 3 {
+            return Err(Error::NotEnoughPlayers);
+        }
+
+        let player_contents = contents::table
+            .filter(contents::lobby_id.eq(&lobby.id))
+            .get_results::<Contents>(&mut conn)
+            .map_err(Error::Db)?;
+
+        if players.len() != player_contents.len() {
+            return Err(Error::NotEveryoneHasContent);
+        }
+
+        // shuffle the player ids to determine the order of guesses
+        let mut shuffled_ids = player_contents
+            .into_iter()
+            .map(|c| c.user_id)
+            .collect::<Vec<String>>();
+
+        shuffled_ids.shuffle(&mut rand::thread_rng());
 
         diesel::update(lobbies)
             .filter(id.eq(lobby.id.clone()))
-            .set(started_at.eq(chrono::Utc::now().naive_utc()))
+            .set((
+                started_at.eq(chrono::Utc::now().naive_utc()),
+                sequence.eq(shuffled_ids.join(",")),
+                current_user_id.eq(shuffled_ids[0].clone()),
+            ))
             .execute(&mut conn)
             .map_err(Error::Db)?;
+
+        // TODO: retrieve current content from lobby
+        // TODO: mutation to forward to the next content
+        // TODO: mutation to guess the current content
 
         Ok(lobby)
     }
@@ -159,7 +198,7 @@ impl<'a> LobbyService<'a> {
         .execute(&mut conn)
         .map_err(Error::Db)?;
 
-        // TODO: delete lobby (and notify users) if host is no longer present
+        // TODO: handle closing of a lobby gracefully in the client
 
         if !present_user_ids.contains(&lobby.host_id) {
             diesel::delete(

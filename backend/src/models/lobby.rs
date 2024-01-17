@@ -32,6 +32,9 @@ pub struct Lobby {
     pub started_at: Option<chrono::NaiveDateTime>,
     pub guessing_time: i16,
     pub host_id: String,
+    #[graphql(skip)]
+    pub sequence: Option<String>,
+    pub current_user_id: Option<String>,
     pub created_at: chrono::NaiveDateTime,
 }
 
@@ -49,6 +52,8 @@ impl Default for Lobby {
             id: generate_random_string(10),
             started_at: None,
             guessing_time: 80,
+            sequence: None,
+            current_user_id: None,
             created_at: chrono::Utc::now().naive_utc(),
             host_id: "".to_string(),
         }

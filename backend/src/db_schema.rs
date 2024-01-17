@@ -23,6 +23,9 @@ diesel::table! {
         guessing_time -> Int2,
         #[max_length = 100]
         host_id -> Varchar,
+        sequence -> Nullable<Text>,
+        #[max_length = 100]
+        current_user_id -> Nullable<Varchar>,
         created_at -> Timestamptz,
     }
 }
