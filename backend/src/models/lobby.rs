@@ -7,11 +7,7 @@ use crate::{
     auth::UserInfo,
     db_schema::lobbies::{self},
     db_schema::lobbies_players,
-    services::{
-        content::ContentService, lobby::LobbyService, presence::PresenceService, user::UserService,
-        Error,
-    },
-    DbPool,
+    services::{content::ContentService, lobby::LobbyService, user::UserService, Error},
 };
 
 use super::{content::Contents, user::User};
@@ -102,11 +98,9 @@ impl Lobby {
 #[ComplexObject]
 impl Lobby {
     async fn host(&self, ctx: &Context<'_>) -> FieldResult<User> {
-        let db_pool = ctx
-            .data::<DbPool>()
-            .expect("No database connection pool in context");
+        let user_service = ctx.data::<UserService>().unwrap();
 
-        let user = UserService::new(db_pool)
+        let user = user_service
             .find(&self.host_id)
             .map_err(|err: Error| err.extend_with(|_, e| e.set("code", 404)))?;
 
@@ -114,11 +108,9 @@ impl Lobby {
     }
 
     async fn content(&self, ctx: &Context<'_>) -> FieldResult<Option<Contents>> {
-        let db_pool = ctx
-            .data::<DbPool>()
-            .expect("No database connection pool in context");
+        let content_service = ctx.data::<ContentService>().unwrap();
 
-        let content = ContentService::new(db_pool)
+        let content = content_service
             .find(self, &ctx.data::<UserInfo>().unwrap().user)
             .map_err(|err: Error| err.extend_with(|_, e| e.set("code", 404)))?;
 
@@ -126,11 +118,9 @@ impl Lobby {
     }
 
     async fn current_content(&self, ctx: &Context<'_>) -> FieldResult<Option<Contents>> {
-        let db_pool = ctx
-            .data::<DbPool>()
-            .expect("No database connection pool in context");
+        let content_service = ctx.data::<ContentService>().unwrap();
 
-        let content = ContentService::new(db_pool)
+        let content = content_service
             .current(self)
             .map_err(|err: Error| err.extend_with(|_, e| e.set("code", 404)))?;
 
@@ -138,19 +128,11 @@ impl Lobby {
     }
 
     async fn guesses(&self, ctx: &Context<'_>) -> FieldResult<Vec<String>> {
-        let db_pool = ctx
-            .data::<DbPool>()
-            .expect("No database connection pool in context");
-
-        let redis = ctx
-            .data::<redis::Client>()
-            .expect("No redis connection pool in context");
-
         let user = ctx.data::<UserInfo>().unwrap().user.clone();
 
-        let presence_service = PresenceService::new(redis);
+        let lobby_service = ctx.data::<LobbyService>().unwrap();
 
-        let guesses = LobbyService::new(db_pool, &presence_service)
+        let guesses = lobby_service
             .guesses(self, &user)
             .map_err(|err: Error| err.extend_with(|_, e| e.set("code", 404)))?;
 
@@ -162,22 +144,17 @@ impl Lobby {
     }
 
     async fn players(&self, ctx: &Context<'_>) -> FieldResult<Vec<Player>> {
-        let db_pool = ctx
-            .data::<DbPool>()
-            .expect("No database connection pool in context");
+        let user_service = ctx.data::<UserService>().unwrap();
+        let lobby_service = ctx.data::<LobbyService>().unwrap();
 
-        let mut conn = db_pool.get()?;
-
-        let players = lobbies_players::table
-            .filter(lobbies_players::lobby_id.eq(&self.id))
-            .order(lobbies_players::created_at.asc())
-            .get_results::<LobbyPlayers>(&mut conn)
-            .map_err(Error::Db)?;
+        let players = lobby_service
+            .find_players(self)
+            .map_err(|err: Error| err.extend_with(|_, e| e.set("code", 404)))?;
 
         let mut users: Vec<Player> = Vec::new();
 
         for player in players {
-            let user = UserService::new(db_pool)
+            let user = user_service
                 .find(&player.player_id)
                 .map_err(|err: Error| err.extend_with(|_, e| e.set("code", 404)))?;
 

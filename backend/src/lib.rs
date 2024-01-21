@@ -3,13 +3,14 @@ use std::sync::Arc;
 use diesel::PgConnection;
 use openidconnect::core::CoreClient;
 use redis::Client as RedisClient;
+use services::user::UserService;
 
 pub mod auth;
 pub mod auth_middleware;
 mod db_schema;
 mod handler;
 mod models;
-mod services;
+pub mod services;
 
 pub use crate::handler::graphql_handler::{Mutation, ProjectSchema, Query};
 
@@ -21,6 +22,7 @@ pub struct AppState {
     pub redis: RedisClient,
     pub schema: ProjectSchema,
     pub oidc_client: OidcClient,
+    pub user_service: Arc<UserService>,
 }
 
 impl Clone for AppState {
@@ -30,6 +32,7 @@ impl Clone for AppState {
             redis: self.redis.clone(),
             schema: self.schema.clone(),
             oidc_client: self.oidc_client.clone(),
+            user_service: self.user_service.clone(),
         }
     }
 }

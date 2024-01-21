@@ -1,5 +1,5 @@
 use crate::models::user::User;
-use crate::services::user::{generate_random_name, UserService};
+use crate::services::user::generate_random_name;
 use crate::AppState;
 use actix_session::{Session, SessionInsertError};
 use actix_web::http::header;
@@ -165,7 +165,8 @@ pub async fn auth_callback(
         created_at: chrono::Utc::now().naive_utc(),
     };
 
-    UserService::new(&context.db_pool)
+    context
+        .user_service
         .register(new_user.clone())
         .map_err(|_| AuthCallbackError::UserServiceError)?;
 

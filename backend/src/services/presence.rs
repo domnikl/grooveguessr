@@ -4,12 +4,13 @@ use crate::models::{lobby::Lobby, user::User};
 
 use super::Error;
 
-pub struct PresenceService<'a> {
-    pub(crate) redis: &'a redis::Client,
+#[derive(Clone)]
+pub struct PresenceService {
+    pub(crate) redis: redis::Client,
 }
 
-impl<'a> PresenceService<'a> {
-    pub fn new(redis: &'a redis::Client) -> Self {
+impl PresenceService {
+    pub fn new(redis: redis::Client) -> Self {
         Self { redis }
     }
 

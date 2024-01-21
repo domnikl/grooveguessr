@@ -6,12 +6,12 @@ use crate::{models::user::User, DbPool};
 
 use super::Error;
 
-pub struct UserService<'a> {
-    db_pool: &'a DbPool,
+pub struct UserService {
+    db_pool: DbPool,
 }
 
-impl<'a> UserService<'a> {
-    pub fn new(db_pool: &'a DbPool) -> Self {
+impl UserService {
+    pub fn new(db_pool: DbPool) -> Self {
         Self { db_pool }
     }
 

@@ -8,12 +8,12 @@ use diesel::prelude::*;
 
 use super::Error;
 
-pub struct ContentService<'a> {
-    db_pool: &'a DbPool,
+pub struct ContentService {
+    db_pool: DbPool,
 }
 
-impl<'a> ContentService<'a> {
-    pub fn new(db_pool: &'a DbPool) -> Self {
+impl ContentService {
+    pub fn new(db_pool: DbPool) -> Self {
         Self { db_pool }
     }
 

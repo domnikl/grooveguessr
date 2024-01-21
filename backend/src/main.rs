@@ -19,6 +19,10 @@ use diesel::r2d2;
 use dotenvy::dotenv;
 
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use grooveguessr_backend::services::content::ContentService;
+use grooveguessr_backend::services::lobby::LobbyService;
+use grooveguessr_backend::services::presence::PresenceService;
+use grooveguessr_backend::services::user::UserService;
 use grooveguessr_backend::{
     auth, auth::create_client, auth::OpenIDConnectConfig, auth::UserInfo,
     auth_middleware::AuthRequired, OidcClient,
@@ -105,16 +109,25 @@ async fn main() -> std::io::Result<()> {
 
     let oidc_client = initialize_oidc_client().await;
 
+    let presence_service = PresenceService::new(redis.clone());
+    let lobby_service = LobbyService::new(db_pool.clone(), presence_service.clone());
+    let user_service = UserService::new(db_pool.clone());
+    let content_service = ContentService::new(db_pool.clone());
+
     let schema = Schema::build(Query, Mutation, EmptySubscription)
         .data(db_pool.clone())
         .data(redis.clone())
+        .data(lobby_service)
+        .data(user_service)
+        .data(content_service)
         .finish();
 
     let app_state = AppState {
-        db_pool,
+        db_pool: db_pool.clone(),
         redis,
         schema,
         oidc_client,
+        user_service: Arc::new(UserService::new(db_pool.clone())),
     };
     let app_data = Data::new(app_state);
 

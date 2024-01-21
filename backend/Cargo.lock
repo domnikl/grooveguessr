@@ -436,6 +436,7 @@ dependencies = [
  "handlebars",
  "http",
  "indexmap 1.9.3",
+ "log",
  "mime",
  "multer",
  "num-traits",

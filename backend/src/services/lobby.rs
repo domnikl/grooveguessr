@@ -12,13 +12,13 @@ use rand::seq::SliceRandom;
 
 use super::{presence::PresenceService, Error};
 
-pub struct LobbyService<'a> {
-    db_pool: &'a DbPool,
-    presence_service: &'a PresenceService<'a>,
+pub struct LobbyService {
+    db_pool: DbPool,
+    presence_service: PresenceService,
 }
 
-impl<'a> LobbyService<'a> {
-    pub fn new(db_pool: &'a DbPool, presence_service: &'a PresenceService) -> Self {
+impl LobbyService {
+    pub fn new(db_pool: DbPool, presence_service: PresenceService) -> Self {
         Self {
             db_pool,
             presence_service,
@@ -295,5 +295,17 @@ impl<'a> LobbyService<'a> {
             .unwrap();
 
         Ok(())
+    }
+
+    pub fn find_players(&self, lobby: &Lobby) -> Result<Vec<LobbyPlayers>, Error> {
+        let mut conn = self.db_pool.get()?;
+
+        let players = lobbies_players::table
+            .filter(lobbies_players::lobby_id.eq(&lobby.id))
+            .order(lobbies_players::created_at.asc())
+            .get_results::<LobbyPlayers>(&mut conn)
+            .map_err(Error::Db)?;
+
+        Ok(players)
     }
 }
