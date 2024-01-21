@@ -5,6 +5,7 @@ pub mod lobby;
 pub mod presence;
 pub mod user;
 
+#[derive(Debug)]
 pub enum Error {
     Db(diesel::result::Error),
     DbConnection(r2d2::Error),

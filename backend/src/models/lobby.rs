@@ -1,5 +1,3 @@
-use std::clone;
-
 use async_graphql::*;
 use diesel::prelude::*;
 use rand::Rng;
@@ -7,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     auth::UserInfo,
-    db_schema::lobbies::{self, current_user_id},
+    db_schema::lobbies::{self},
     db_schema::lobbies_players,
     services::{
         content::ContentService, lobby::LobbyService, presence::PresenceService, user::UserService,
@@ -16,10 +14,7 @@ use crate::{
     DbPool,
 };
 
-use super::{
-    content::Contents,
-    user::{self, User},
-};
+use super::{content::Contents, user::User};
 
 #[derive(
     Debug,
@@ -76,21 +71,18 @@ struct Player {
 }
 
 impl Lobby {
-    fn current_user_index(&self) -> Result<usize, Error> {
+    fn current_user_index(&self) -> Option<usize> {
         match self.current_user_id.clone() {
-            None => Err(Error::GameNotStarted),
+            None => None,
             Some(user_id) => match self.sequence.clone() {
-                Some(s) => Ok(s
-                    .split(',')
-                    .position(|s| s == user_id)
-                    .ok_or(Error::GameNotStarted)?),
-                None => Err(Error::GameNotStarted),
+                Some(s) => s.split(',').position(|s| s == user_id),
+                None => None,
             },
         }
     }
 
     pub fn forward(mut self) -> Result<Self, Error> {
-        let current_user_index = self.current_user_index()?;
+        let current_user_index = self.current_user_index().ok_or(Error::GameNotStarted)?;
 
         let sequence = match self.sequence {
             Some(ref sequence) => Ok(sequence.split(',').collect::<Vec<&str>>()),
@@ -165,24 +157,8 @@ impl Lobby {
         Ok(guesses)
     }
 
-    async fn round_index(&self, ctx: &Context<'_>) -> FieldResult<Option<usize>> {
-        let db_pool = ctx
-            .data::<DbPool>()
-            .expect("No database connection pool in context");
-
-        let sequence = match self.sequence {
-            Some(ref sequence) => sequence.split(',').collect::<Vec<&str>>(),
-            None => return Ok(None),
-        };
-
-        let content = ContentService::new(db_pool)
-            .current(self)
-            .map_err(|err: Error| err.extend_with(|_, e| e.set("code", 404)))?;
-
-        match content {
-            Some(content) => Ok(sequence.iter().position(|&s| s == content.user_id)),
-            None => Ok(None),
-        }
+    async fn round_index(&self) -> FieldResult<Option<usize>> {
+        Ok(self.current_user_index())
     }
 
     async fn players(&self, ctx: &Context<'_>) -> FieldResult<Vec<Player>> {
@@ -257,5 +233,68 @@ mod tests {
             default_lobby.created_at.date().day(),
             chrono::Utc::now().naive_utc().date().day()
         );
+    }
+
+    #[test]
+    fn will_forward_if_there_is_more() {
+        let lobby = lobby::Lobby {
+            sequence: Some("1,2,3".to_string()),
+            current_user_id: Some("1".to_string()),
+            ..Default::default()
+        };
+
+        let updated_lobby = lobby.forward().unwrap();
+
+        assert_eq!(updated_lobby.current_user_id, Some("2".to_string()));
+    }
+
+    #[test]
+    fn will_return_error_for_forward_if_there_is_not_more() {
+        let lobby = lobby::Lobby {
+            sequence: Some("1,2,3".to_string()),
+            current_user_id: Some("3".to_string()),
+            ..Default::default()
+        };
+
+        let updated_lobby = lobby.forward();
+
+        assert!(updated_lobby.is_err());
+    }
+
+    #[test]
+    fn will_return_error_for_forward_if_game_hasnt_started() {
+        let lobby = lobby::Lobby {
+            sequence: None,
+            current_user_id: None,
+            ..Default::default()
+        };
+
+        assert!(lobby.forward().is_err());
+    }
+
+    #[test]
+    fn will_return_current_user_index() {
+        let lobby = lobby::Lobby {
+            sequence: Some("1,2,3".to_string()),
+            current_user_id: Some("2".to_string()),
+            ..Default::default()
+        };
+
+        let current_user_index = lobby.current_user_index().unwrap();
+
+        assert_eq!(current_user_index, 1);
+    }
+
+    #[test]
+    fn current_user_index_returns_none_if_game_wasnt_started() {
+        let lobby = lobby::Lobby {
+            sequence: None,
+            current_user_id: None,
+            ..Default::default()
+        };
+
+        let current_user_index = lobby.current_user_index();
+
+        assert!(current_user_index.is_none());
     }
 }
