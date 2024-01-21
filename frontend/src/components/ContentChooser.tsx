@@ -2,6 +2,8 @@ import { gql, useMutation } from "@apollo/client";
 import { FormControl, Stack, TextField, Typography } from "@mui/material";
 import { useState } from "react";
 import { validateUrl } from "../utils";
+import ReactPlayer from "react-player";
+import { set } from "date-fns";
 
 export const SET_CONTENT = gql`
   mutation setContent($id: String!, $url: String!) {
@@ -16,50 +18,51 @@ export const SET_CONTENT = gql`
 type ContentChooserProps = {
   lobbyId: string;
   defaultUrl?: string;
-  onContentSelected: (content: any) => void;
+  disabled: boolean;
 };
 
 export default function ContentChooser(props: ContentChooserProps) {
-  const [url, setUrl] = useState<String>(props.defaultUrl ?? "");
-  const [error, setError] = useState<String | null>(null);
+  const [url, setUrl] = useState<string>(props.defaultUrl ?? "");
+  const [error, setError] = useState<string | null>(null);
   const [setContent] = useMutation(SET_CONTENT);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newUrl = event.target.value;
-    setUrl(newUrl);
+    let newUrl: string | null = event.target.value?.trim() ?? null;
+    let saveUrl: string | null = newUrl;
 
     if (newUrl.length === 0) {
       setError(null);
-      return;
+      newUrl = null;
     } else if (!validateUrl(newUrl)) {
       setError("Invalid URL");
-      return;
+      saveUrl = null;
     }
+
+    setUrl(newUrl ?? "");
 
     // TODO: debounce
 
     setContent({
       variables: {
         id: props.lobbyId,
-        url: newUrl,
+        url: saveUrl,
       },
     })
       .catch((error) => {
         setError(error.message);
       })
-      .then((result: any) => {
-        setUrl(result.data.setContent.content.data);
+      .then(() => {
         setError(null);
-        props.onContentSelected(newUrl);
       });
   };
 
   return (
     <Stack>
-      <Typography variant="h3">Select a video</Typography>
+      <Typography variant="h3">Choose a video</Typography>
 
       <Typography>
-        Choose your content to guess. Must be a valid YouTube link.
+        Paste a YouTube link below to choose a video. The video will be played
+        to everyone to guess.
       </Typography>
 
       <Stack>
@@ -67,7 +70,7 @@ export default function ContentChooser(props: ContentChooserProps) {
           <TextField
             rows={1}
             autoFocus={true}
-            defaultValue={props.defaultUrl}
+            disabled={props.disabled}
             value={url}
             onChange={handleChange}
             variant="filled"
@@ -77,6 +80,16 @@ export default function ContentChooser(props: ContentChooserProps) {
             helperText={error}
           />
         </FormControl>
+
+        {url && !error && (
+          <ReactPlayer
+            width={580}
+            url={url ?? ""}
+            onError={() => {
+              setError("Can't load video");
+            }}
+          />
+        )}
       </Stack>
     </Stack>
   );

@@ -11,6 +11,8 @@ use crate::{models::lobby::Lobby, DbPool};
 pub struct Query;
 pub struct Mutation;
 
+// TODO: instantiate these services in a more elegant way
+
 fn db_pool<'a>(ctx: &Context<'a>) -> &'a DbPool {
     ctx.data::<DbPool>()
         .expect("No database connection pool in context")
@@ -134,6 +136,35 @@ impl Mutation {
         user = service.save(user)?;
 
         Ok(user)
+    }
+
+    async fn guess(
+        &self,
+        ctx: &Context<'_>,
+        id: String,
+        round_index: usize,
+        guessed_user_id: String,
+    ) -> FieldResult<Lobby> {
+        let user_info = ctx.data::<UserInfo>().unwrap();
+        let presence_service = presence_service(ctx);
+        let service = lobby_service(ctx, &presence_service);
+        let guessed_user = user_service(ctx).find(&guessed_user_id)?;
+        let lobby = service.find(id, &user_info.user)?;
+
+        service.guess(&lobby, round_index, &user_info.user, &guessed_user)?;
+
+        Ok(lobby)
+    }
+
+    async fn forward(&self, ctx: &Context<'_>, id: String) -> FieldResult<Lobby> {
+        let user_info = ctx.data::<UserInfo>().unwrap();
+
+        let presence_service = presence_service(ctx);
+        let service = lobby_service(ctx, &presence_service);
+        let lobby = service.find(id, &user_info.user)?;
+        let lobby = service.forward(lobby, &user_info.user)?;
+
+        Ok(lobby)
     }
 }
 

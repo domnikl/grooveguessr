@@ -13,6 +13,8 @@ pub enum Error {
     Unauthorized,
     NotEveryoneHasContent,
     NotEnoughPlayers,
+    GameNotStarted,
+    GameAlreadyFinished,
 }
 
 impl Display for Error {
@@ -25,6 +27,8 @@ impl Display for Error {
             Error::Unauthorized => write!(f, "Unauthorized"),
             Error::NotEveryoneHasContent => write!(f, "Not everyone has content"),
             Error::NotEnoughPlayers => write!(f, "Not enough players (min of 3)"),
+            Error::GameNotStarted => write!(f, "Game not started"),
+            Error::GameAlreadyFinished => write!(f, "Game already finished"),
         }
     }
 }

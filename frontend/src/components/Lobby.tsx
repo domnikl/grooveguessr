@@ -25,14 +25,6 @@ export const START_GAME = gql`
   }
 `;
 
-const JOIN_LOBBY = gql`
-  mutation joinLobby($id: String!) {
-    joinLobby(id: $id) {
-      id
-    }
-  }
-`;
-
 const SET_READY = gql`
   mutation setReady($id: String!, $ready: Boolean!) {
     setReady(id: $id, ready: $ready) {
@@ -45,6 +37,7 @@ type LobbyProps = {
   id: string;
   isLoading: boolean;
   data: any;
+  isHost: boolean;
   stopPolling: () => void;
   startPolling: () => void;
 };
@@ -52,7 +45,6 @@ type LobbyProps = {
 export default function Lobby(props: LobbyProps) {
   const [configureLobby] = useMutation(CONFIGURE_LOBBY);
   const [startGame] = useMutation(START_GAME);
-  const [joinLobby] = useMutation(JOIN_LOBBY);
   const [setReady] = useMutation(SET_READY);
 
   const [isDirty, setIsDirty] = useState<boolean>(false);
@@ -60,21 +52,16 @@ export default function Lobby(props: LobbyProps) {
     props.data?.lobby?.guessingTime ?? 120
   );
 
+  const hasVideo = props.data?.lobby?.content?.data;
+
   useEffect(() => {
-    // if the user is not yet part of the lobby, join it
-    const playerIds = props.data?.lobby?.players?.map((p: Player) => p.id);
-
-    if (playerIds.indexOf(props.data?.profile?.id) === -1) {
-      joinLobby({ variables: { id: props.data?.lobby?.id } });
-    }
-
     if (isDirty) {
       // don't overwrite if there are pending changes
       return;
     }
 
     setGuessingTime(props.data?.lobby?.guessingTime);
-  }, [props.data, isDirty, joinLobby]);
+  }, [props.data, isDirty]);
 
   const handleChangeCommitted = (guessingTime: number) => {
     if (props.data?.lobby?.host?.id !== props.data?.profile?.id) {
@@ -93,12 +80,12 @@ export default function Lobby(props: LobbyProps) {
   const player = props.data?.lobby?.players?.filter(
     (p: Player) => p.id === props.data?.profile?.id
   )[0];
-  const isHost = props.data?.lobby?.host?.id === player?.id;
   const everyoneReady = props.data?.lobby?.players?.every(
     (p: Player) => p.isReady
   );
   const numberOfPlayers = props.data?.lobby?.players?.length;
-  const readyToStart = everyoneReady && numberOfPlayers >= 1; // TODO: only start if numberOfPlayers >= 3
+  //const readyToStart = everyoneReady && numberOfPlayers >= 3;
+  const readyToStart = everyoneReady; // TODO: change back to above
 
   let readyCaption = "Ready";
   let readyColor: "success" | "error" = "success";
@@ -128,7 +115,7 @@ export default function Lobby(props: LobbyProps) {
                 defaultValue={120}
                 min={10}
                 max={3 * 60}
-                disabled={!isHost}
+                disabled={!props.isHost}
                 guessingTime={guessingTime ?? 120}
                 onChangeCommitted={handleChangeCommitted}
                 onChange={(guessingTime) => {
@@ -140,7 +127,7 @@ export default function Lobby(props: LobbyProps) {
 
             <ElevatedPaper>
               <ContentChooser
-                onContentSelected={(e) => console.log(e)}
+                disabled={player?.isReady}
                 lobbyId={props.data?.lobby?.id}
                 defaultUrl={props.data?.lobby?.content?.data}
               />
@@ -158,6 +145,7 @@ export default function Lobby(props: LobbyProps) {
                 size="large"
                 variant="contained"
                 color={readyColor}
+                disabled={!hasVideo}
                 onClick={() => {
                   props.stopPolling();
 
@@ -174,7 +162,7 @@ export default function Lobby(props: LobbyProps) {
                 {readyCaption}
               </Button>
 
-              {isHost && readyToStart && (
+              {props.isHost && readyToStart && (
                 <Button
                   size="large"
                   variant="contained"

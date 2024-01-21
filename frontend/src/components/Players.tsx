@@ -3,6 +3,7 @@ import { Player } from "../model/Player";
 import { Check, Close } from "@mui/icons-material";
 import { gql, useMutation } from "@apollo/client";
 import { useState } from "react";
+import UserAvatar from "./UserAvatar";
 
 export const SET_NAME = gql`
   mutation setName($name: String!) {
@@ -85,7 +86,6 @@ function PlayerName(props: { player: Player; editable: boolean }) {
             <TextField
               value={editName}
               variant="filled"
-              onBlur={cancelEditing}
               error={editError !== null}
               helperText={editError}
               onKeyDown={(e) => {
@@ -114,13 +114,15 @@ function PlayerName(props: { player: Player; editable: boolean }) {
             </Button>
           </Stack>
         ) : (
-          <Typography
+          <Stack
             sx={{ cursor: cursor }}
             key={props.player.id}
+            direction="row"
+            alignItems="center"
             onClick={startEditing}
           >
-            {props.player.name}
-          </Typography>
+            <UserAvatar name={props.player.name} />
+          </Stack>
         )}
       </Stack>
     </Badge>

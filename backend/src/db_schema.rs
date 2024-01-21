@@ -37,6 +37,7 @@ diesel::table! {
         #[max_length = 100]
         player_id -> Varchar,
         is_ready -> Bool,
+        guesses -> Text,
         created_at -> Timestamptz,
     }
 }

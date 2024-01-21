@@ -29,4 +29,21 @@ impl<'a> ContentService<'a> {
 
         Ok(content)
     }
+
+    pub fn current(&self, lobby: &Lobby) -> Result<Option<Contents>, Error> {
+        let mut conn = self.db_pool.get()?;
+
+        if lobby.current_user_id.is_none() {
+            return Ok(None);
+        }
+
+        let content = contents
+            .filter(lobby_id.eq(lobby.id.clone()))
+            .filter(user_id.eq(lobby.current_user_id.clone().unwrap()))
+            .first::<Contents>(&mut conn)
+            .optional()
+            .map_err(Error::Db)?;
+
+        Ok(content)
+    }
 }

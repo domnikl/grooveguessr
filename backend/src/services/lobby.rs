@@ -7,7 +7,7 @@ use crate::{
     models::{content::Contents, lobby::LobbyPlayers, user::User},
 };
 use crate::{models::lobby::Lobby, DbPool};
-use diesel::{associations::HasTable, prelude::*, upsert::on_constraint};
+use diesel::{prelude::*, upsert::on_constraint};
 use rand::seq::SliceRandom;
 
 use super::{presence::PresenceService, Error};
@@ -62,6 +62,7 @@ impl<'a> LobbyService<'a> {
             lobby_id: lobby.id.clone(),
             player_id: user.id.clone(),
             is_ready: false,
+            guesses: "".to_owned(),
             created_at: chrono::Utc::now(),
         };
 
@@ -103,15 +104,15 @@ impl<'a> LobbyService<'a> {
             return Err(Error::GameAlreadyStarted);
         }
 
-        // TODO: run it in a transaction
         let players = lobbies_players::table
             .filter(lobbies_players::lobby_id.eq(&lobby.id))
             .get_results::<LobbyPlayers>(&mut conn)
             .map_err(Error::Db)?;
 
-        if players.len() < 3 {
+        // TODO: validate it
+        /*if players.len() < 3 {
             return Err(Error::NotEnoughPlayers);
-        }
+        }*/
 
         let player_contents = contents::table
             .filter(contents::lobby_id.eq(&lobby.id))
@@ -139,10 +140,6 @@ impl<'a> LobbyService<'a> {
             ))
             .execute(&mut conn)
             .map_err(Error::Db)?;
-
-        // TODO: retrieve current content from lobby
-        // TODO: mutation to forward to the next content
-        // TODO: mutation to guess the current content
 
         Ok(lobby)
     }
@@ -183,6 +180,24 @@ impl<'a> LobbyService<'a> {
         Ok(lobby)
     }
 
+    pub fn forward(&self, lobby: Lobby, user: &User) -> Result<Lobby, Error> {
+        let mut conn = self.db_pool.get()?;
+
+        if lobby.host_id != user.id {
+            return Err(Error::Unauthorized);
+        }
+
+        let lobby = lobby.forward()?;
+
+        diesel::update(lobbies)
+            .filter(id.eq(lobby.id.clone()))
+            .set(lobby.clone())
+            .execute(&mut conn)
+            .map_err(Error::Db)?;
+
+        Ok(lobby)
+    }
+
     pub fn clear_inactive_players(&self, lobby: &Lobby) -> Result<(), Error> {
         let mut conn = self.db_pool.get()?;
 
@@ -198,15 +213,86 @@ impl<'a> LobbyService<'a> {
         .execute(&mut conn)
         .map_err(Error::Db)?;
 
-        // TODO: handle closing of a lobby gracefully in the client
-
         if !present_user_ids.contains(&lobby.host_id) {
-            diesel::delete(
+            // TODO: don't delete lobby if host is gone, set new host (if there are players left)
+            /*diesel::delete(
                 lobbies::table().filter(id.eq(&lobby.id).and(host_id.eq(&lobby.host_id))),
             )
             .execute(&mut conn)
-            .map_err(Error::Db)?;
+            .map_err(Error::Db)?;*/
         }
+
+        Ok(())
+    }
+
+    pub fn guesses(&self, lobby: &Lobby, user: &User) -> Result<Vec<String>, Error> {
+        let mut conn = self.db_pool.get()?;
+
+        let player = lobbies_players::table
+            .filter(lobbies_players::lobby_id.eq(&lobby.id))
+            .filter(lobbies_players::player_id.eq(&user.id))
+            .first::<LobbyPlayers>(&mut conn)
+            .optional()
+            .map_err(Error::Db)?;
+
+        let guesses = match player {
+            Some(player) => {
+                if player.guesses.is_empty() {
+                    return Ok(Vec::new());
+                }
+
+                player.guesses.split(',').map(|s| s.to_owned()).collect()
+            }
+
+            None => Vec::new(),
+        };
+
+        Ok(guesses)
+    }
+
+    pub fn guess(
+        &self,
+        lobby: &Lobby,
+        round_index: usize,
+        user: &User,
+        guessed_user: &User,
+    ) -> Result<(), Error> {
+        let mut conn = self.db_pool.get()?;
+
+        let player = lobbies_players::table
+            .filter(lobbies_players::lobby_id.eq(&lobby.id))
+            .filter(lobbies_players::player_id.eq(&user.id))
+            .first::<LobbyPlayers>(&mut conn)
+            .optional()
+            .unwrap();
+
+        let mut guesses = match player {
+            Some(player) => {
+                if player.guesses.is_empty() {
+                    Vec::new()
+                } else {
+                    player.guesses.split(',').map(|s| s.to_owned()).collect()
+                }
+            }
+
+            None => Vec::new(),
+        };
+
+        if guesses.len() <= round_index {
+            guesses.push(guessed_user.id.clone());
+        } else {
+            guesses[round_index] = guessed_user.id.clone();
+        }
+
+        diesel::update(lobbies_players::table)
+            .filter(
+                lobbies_players::lobby_id
+                    .eq(&lobby.id)
+                    .and(lobbies_players::player_id.eq(&user.id)),
+            )
+            .set(lobbies_players::guesses.eq(guesses.join(",")))
+            .execute(&mut conn)
+            .unwrap();
 
         Ok(())
     }

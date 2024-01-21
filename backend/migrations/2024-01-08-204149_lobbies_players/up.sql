@@ -3,6 +3,7 @@ CREATE TABLE lobbies_players
     "lobby_id" CHAR(10) NOT NULL,
     "player_id" VARCHAR(100) NOT NULL,
     "is_ready" BOOLEAN NOT NULL DEFAULT FALSE,
+    "guesses" TEXT NOT NULL DEFAULT '',
     "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "lobbies_players_pkey" PRIMARY KEY ("lobby_id", "player_id"),

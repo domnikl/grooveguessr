@@ -42,7 +42,7 @@ export default function Home() {
       return;
     }
 
-    // TODO: check if this is a valid game id
+    // TODO: check if this is a valid game id before redirecting
 
     navigate(`/game/${joinGameId}`);
   };

@@ -20,6 +20,12 @@ export const GET_LOBBY = gql`
         data
         type
       }
+      currentContent {
+        data
+        type
+      }
+      guesses
+      roundIndex
     }
     profile {
       id

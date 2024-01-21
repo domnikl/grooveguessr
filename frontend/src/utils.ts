@@ -15,3 +15,15 @@ export function validateUrl(url: string): boolean {
     return false;
   }
 }
+
+export function stringToColor(value: string): string {
+  const hash = value.split("").reduce((acc, char) => {
+    acc = (acc << 5) - acc + char.toUpperCase().charCodeAt(0);
+    return acc & acc;
+  }, 0);
+
+  const hue = Math.abs(hash % 360);
+  const lightness = 50 + Math.abs(hash % 20);
+
+  return `hsl(${hue}, 60%, ${lightness}%)`;
+}
