@@ -16,7 +16,7 @@ futures = "0.3"
 diesel = { version = "2", features = ["postgres", "r2d2", "chrono", "uuid"] }
 openidconnect = { version = "~3.5.0", features = ["accept-rfc3339-timestamps"] }
 actix-session = { version = "0.9.0", features = ["cookie-session"] }
-chrono = { version = "0.4.24", features = ["serde"] }
+chrono = { version = "0.4.35", features = ["serde"] }
 hyper-rustls = { version = "0.24.0", features = ["http2"] }
 env_logger = "0.10.0"
 log = "0.4.17"
