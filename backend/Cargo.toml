@@ -9,7 +9,7 @@ edition = "2021"
 actix-web = "4"
 actix-files = "0.6.5"
 async-graphql = { version = "5.0.10", features = ["chrono", "uuid", "log"] }
-async-graphql-actix-web = "5.0.7"
+async-graphql-actix-web = "5.0.10"
 serde = { version = "1.0.196", features = ["derive"] }
 dotenvy = "0.15.7"
 futures = "0.3"
